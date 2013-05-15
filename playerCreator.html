@@ -1,0 +1,232 @@
+﻿<!DOCTYPE HTML>
+<html>
+<head>
+	<title>Character Creator</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+<body>
+
+<input id="name" placeholder="主角名字"></input>
+<button onclick=$("name").disabled=true>起名神马的最麻烦了</button>
+<div id="questions"></div>
+<div id="score">战斗力<strong id="scoreMarks">0</strong></div>
+<button id="store" onclick="store()" disabled=true>保存角色</button>
+
+</body>
+</html>
+<script src="helper.js"></script>
+<script src="chara.js"></script>
+<script>
+var questions = {
+	_exclusive: true,
+	"人家是普通的冒险者啦": {
+		_base: 1000,
+		"实力": {
+			_base: 0,
+			"力量": {
+				_base: 0,
+				_exclusive: true,
+				"呼吸好幸苦啊" : -200,
+				"站着都觉得腿酸" : -100,
+				"手无缚鸡之力" : -50,
+				"我有筋肉我自豪": 240,
+				"一拳打死一头牛": 5316,
+				"连诺基亚都能捏碎": 18560,
+			},
+			"体质": {
+				_base: 0,
+				_exclusive: true,
+				"一打喷嚏就会骨折" : -180,
+				"跑100米会挂掉的啊" : -90,
+				"身娇体弱易推倒" : -45,
+				"从来不得病": 220,
+				"筋骨奇强": 4837,
+				"命比猫还多": 16939,
+			},
+			"灵巧": {
+				_base: 0,
+				_exclusive: true,
+				"时刻都在和身体平衡做斗争" : -190,
+				"平地摔等级max" : -95,
+				"单脚从来站不稳" : -48,
+				"跑酷是业余爱好": 230,
+				"杂技举世无双": 5102,
+				"天天在幻想乡玩弹幕游戏，从不miss": 17721,
+			},
+			"反应": {
+				_base: 0,
+				_exclusive: true,
+				"眼神跟不上乌龟的速度" : -215,
+				"走路经常撞柱子" : -110,
+				"总是慢半拍" : -55,
+				"静若处子，动如脱兔": 250,
+				"反射神经世界第一": 5926,
+				"就算速度快如光，都逃不出我的眼睛": 20013,
+			},
+			"智商": {
+				_base: 0,
+				_exclusive: true,
+				"这个能吃吗？" : -250,
+				"学会上网就已经是个奇迹了" : -125,
+				"很容易被骗" : -62,
+				"有的是小聪明": 300,
+				"已经没有什么能难倒我了": 8114,
+				"智慧的化身": 32272,
+			},
+			"感知": {
+				_base: 0,
+				_exclusive: true,
+				"很幸福，因为什么都不知道" : -170,
+				"糊涂病已经无药可医" : -85,
+				"天然呆" : -42,
+				"找东西神马的最拿手了": 210,
+				"世间万千，尽在掌握": 4193,
+				"通晓宇宙的奥秘": 14572,
+			},
+		},
+		"身体": {
+			_base: 0,
+			_exclusive: true,
+			"萝莉": {
+				_base: -36,
+				"而且天生怪力": 86193,
+			},
+			"少女": 0,
+			"御姐": 18,
+		},
+	},
+	"玛丽苏女主": {
+		_base: Math.pow(2, 50) + d(Math.pow(2, 53)),
+		"其实是可爱的男孩子": "这人早被FFF团烧死了\n",
+	},
+	"战斗力只有5": 5,
+}
+function createCheckedTree(tree) {
+	var ans = {};
+	for(var key in tree) {
+		if(typeof tree[key] === 'number' || typeof tree[key] === 'string') {
+			ans[key] = false
+		} else {
+			ans[key] = createCheckedTree(tree[key])
+		}
+	}
+	return ans;
+}
+var checked = createCheckedTree(questions);
+function calculateNodeScore(node, cnode){
+	var score = 0;
+	if('_base' in node){
+		if(cnode._base) score += node._base
+		else return 0
+	}
+	for(var key in node) if(!/^_/.test(key)) {
+		if(typeof(node[key]) === 'number') {
+			if(cnode[key]) score += node[key]
+		} else if(typeof(node[key]) === 'string') {
+			if(cnode[key]) throw (node[key])
+		} else {
+			score += calculateNodeScore(node[key], cnode[key]);
+		}
+	};
+	return score;
+}
+function recalculateScore() {
+	for(var j = 0; j < checkFunctions.length; j++){
+		checkFunctions[j]();
+	}
+	var score = 0;
+	try {
+		score = calculateNodeScore(questions, checked);
+		$h('scoreMarks', ('' + score).replace(/-/g, '\u2212'));
+		$("store").disabled=false;
+	} catch (e) {
+		$h('scoreMarks', '<span class="err">' + e + '</span>');
+		$("store").disabled=true;
+	}
+};
+var checkFunctions = []
+var groupid = 0;
+function createDOMTree(tree, container){
+	var ol = document.createElement("ol");
+	container.appendChild(ol);
+	var gid = groupid++;
+	var childrenInputType = tree._exclusive ? 'radio' : 'checkbox'
+	for(var key in tree) if(!/^_/.test(key)){
+		var subtree = tree[key];	
+		if(typeof(subtree) === 'boolean') {
+			// common node
+			(function(t, k){
+				var li = document.createElement('li');
+				ol.appendChild(li);
+				var label = document.createElement('label');
+				li.appendChild(label);
+				var checkbox = document.createElement('input');
+				checkbox.type = childrenInputType;
+				checkbox.name = 'g' + gid;
+				checkFunctions.push(function(){
+					t[k] = checkbox.checked;
+				})
+				label.appendChild(checkbox);
+				label.appendChild(document.createTextNode(k));
+				checkbox.onchange = function(){
+					recalculateScore();
+				}
+			})(tree, key);
+		} else {
+			var li = document.createElement('li');
+			ol.appendChild(li);
+			if('_base' in subtree){
+				(function(t, k, li, displayKey){
+					var label = document.createElement('label');
+					li.appendChild(label);
+					var checkbox = document.createElement('input');
+					checkbox.type = childrenInputType;
+					checkbox.name = 'g' + gid;
+					checkFunctions.push(function(){
+						li.className = (checkbox.checked ? 'showChild' : 'hideChild');
+						t[k] = checkbox.checked;
+					});
+					label.appendChild(checkbox);
+					label.appendChild(document.createTextNode(displayKey));
+					checkbox.onchange = function(){
+						recalculateScore()
+					};
+					li.className = 'hideChild'
+				})(subtree, '_base', li, key)
+			} else {
+				li.appendChild(document.createTextNode(key))
+			};
+			createDOMTree(subtree, li);
+		}
+	};
+	container.appendChild(ol);
+};
+function store() {
+	var point = $('scoreMarks').innerText;
+	var player;
+	if(point == 5) {
+		player = new junk();
+	} else if(point > Math.pow(2, 50)) {
+		player = new marysue();
+	} else {
+		player = new adventure();
+	}
+	player.name = $('name').disabled || $('name').value == '' ? '你' : $('name').value;
+	var savedata = JSON.stringify(player);
+	alert(savedata + '\n\n特性 ' + parseCharaStatus(player));
+	localStorage.setItem('yurisq', savedata);
+}
+createDOMTree(checked, $('questions'))
+</script>
+
+<style>
+body {background-color:#000;color:#770}
+li {list-style-type:upper-roman}
+#name {margin:20px}
+#store {margin-left:180px;margin-top:40px}
+#questions .hideChild ol {display:none}
+#score {position:fixed;left:17.5em;top:5em;font-size:2em;text-align:center;border:1px solid #ddd;padding:0.2em;width:7em}
+#score #scoreMarks {display:block;font-size:1.5em}
+#score {color:#eee}
+#score .err {color:#f00}
+</style>
